@@ -3,28 +3,25 @@
 
 int main()
 {
-	
-	Tree t=NULL;
-	Choice temp;
+	Tree fileSystem=NULL;
+	Choice option;
 
-	
-	
-	if(!Load(&t))
-		Initialize(&t);
+	//默认从文件中加载树，若失败说明文件不存在，则初始化树
+	if(!Load(&fileSystem))
+		Initialize(&fileSystem);
 
-	PrintPreOrder(t, 0);
+	PrintPreOrder(fileSystem, 0);
 
-	while((temp=GetChoice())!=QUIT)
+	while((option=GetChoice())!=QUIT)
 	{
-		switch(temp)
+		switch(option)
 		{
-			case INSERT:Insert(t);break;
-			case PREORDER:PrintPreOrder(t,0);break;
-			case POSTORDER:PrintPostOrder(t,0);break;
+			case INSERT:Insert(fileSystem);break;
+			case PREORDER:PrintPreOrder(fileSystem,0);break;
+			case POSTORDER:PrintPostOrder(fileSystem,0);break;
 		}
 	}
-	Store(t);
-	
+	Store(fileSystem);
 	
 	return 0;
 }

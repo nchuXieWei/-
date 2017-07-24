@@ -1,77 +1,97 @@
 ﻿#include "XWtree.h"
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-static bool Loaded = false;
+//非main中使用的子函数
+int StoreToArray(fileNode *a, Tree t, int father, int ths);
+int Count(Tree t);
+void FreeTree(Tree t);
+Tree FindDirectory(Tree t, const char *insertPath, int layer, int total);
+void getNodeName(char *des, const char *source, int layer);
+void FreeTree(Tree t);
 
-Tree FindDirectory(Tree t,const char *Path,int layer,int total)
+
+
+
+//用于得到path中指定层数的结点名，层数从0开始
+//如path为root/xxx/yyy/时，若layer为2则des将被写为yyy，若layer为0则des将被写为root
+//path必须为‘/’结尾
+void getNodeName(char *des, const char *path, int layer)
+{
+	int srcStart = 0;
+
+	for (int i = 0;i != layer;)
+	{
+		if (path[srcStart++] == '/')
+			i++;
+	}
+
+
+	int srcEnd = srcStart;
+
+	while (path[srcEnd] != '/')
+		srcEnd++;
+
+	strncpy_s(des, 50, &path[srcStart], srcEnd - srcStart);
+	des[srcEnd - srcStart] = '\0';
+
+}
+
+
+
+
+//寻找参数Path中某文件夹结点的地址，参数total用于指明寻找路径中的哪一层文件夹，层数从0开始
+//如Path为root/xxx/yyy/时，如果total为2则返回yyy的地址，total为0则返回root的地址
+//参数layer调用者一般设为0，用于函数递归实现
+//若不存在目标文件夹（目标结点为文件或total大于path中的层数），则返回NULL
+Tree FindDirectory(Tree t,const char *path,int layer,int target)
 {
 	char name[NAMESIZE];
-	getNodeName(name,Path,layer);
+	getNodeName(name,path,layer);
 	if(!strcmp(name,t->name)&&!t->IsFile)
 	{
-		if(layer==(total-1))
+		if(layer==target)
 			return t;
-		getNodeName(name,Path,layer+1);
+		getNodeName(name,path,layer+1);
 		Tree temp=t->son;
 		while(temp!=NULL)
 		{
 			if(!temp->IsFile&&!strcmp(temp->name,name))
-			{
-				return FindDirectory(temp,Path,layer+1,total);
-			}
+				return FindDirectory(temp,path,layer+1,target);
 			else
 				temp=temp->brother;
 		}
 		return NULL;
 	}
-	else
-	{
-		return NULL;
-	}	
+	else return NULL;
 }
 
-void getNodeName(char *des,const char *path,int layer)
-{
-	int srcStart=0;
-	
-	for(int i=0;i!=layer;)
-	{
-		if(path[srcStart++]=='/')
-			i++;
-	}
-	
-	
-	int srcEnd=srcStart;
-	
-	while(path[srcEnd]!='/')
-		srcEnd++;
-	
-	strncpy_s(des,50,&path[srcStart],srcEnd-srcStart);
-	des[srcEnd-srcStart]='\0';
-	
-}
 
+
+
+//初始化树t，使其为文件夹且名为root
 bool Initialize(Tree *t)
 {	
 	*t=(Tree)malloc(sizeof(treeNode));
-	
 	(*t)->IsFile=false;
 	strcpy_s((*t)->name,NAMESIZE,"root");
 	(*t)->son=NULL;
 	(*t)->brother=NULL;
-	
 	return true;
 }
 
+
+
+
+//提示用户如何操作并获取用户所选的操作
 Choice GetChoice()
 {
 	int choice;
 	printf("\n请选择你要的操作：\n");
 	printf("0.新增文件（夹）   1.先序遍历系统   2.后序遍历系统    3.退出程序\n");
-	
 	scanf_s("%d",&choice);
-	while(getchar()!='\n');
+	
 	switch(choice)
 	{
 		case 0:return INSERT;
@@ -81,6 +101,9 @@ Choice GetChoice()
 	}
 }
 
+
+
+//在t中插入新结点
 void Insert(Tree t)
 {
 	char insertPath[PATHSIZE];
@@ -94,7 +117,7 @@ void Insert(Tree t)
 			n++;
 	
 	
-	Tree directory=FindDirectory(t,insertPath,0,n);
+	Tree directory=FindDirectory(t,insertPath,0,n-1);
 	
 	if(directory==NULL)
 	{
@@ -103,12 +126,12 @@ void Insert(Tree t)
 	}
 	
 	printf("请选择你要新增的类型：0.文件夹   1.文件\n");
-	int temp;
-	scanf_s("%d",&temp);
-	while(getchar()!='\n');
+	int nodeType;
+	scanf_s("%d",&nodeType);
+
 	
 	Tree newNode=(Tree)malloc(sizeof(treeNode));
-	switch(temp)
+	switch(nodeType)
 	{
 		case 0:newNode->IsFile=false;break;
 		case 1:newNode->IsFile=true;break;
@@ -118,7 +141,7 @@ void Insert(Tree t)
 	printf("请输入文件（夹）名：\n");
 	char name[NAMESIZE];
 	scanf_s("%s",name,NAMESIZE);
-	newNode->son=newNode->brother=NULL;
+	newNode->son = newNode->brother = NULL;
 	strcpy_s(newNode->name,50,name);
 	
 	if(directory->son!=NULL)
@@ -127,19 +150,20 @@ void Insert(Tree t)
 		directory->son=newNode;
 	}
 	else
-	{
 		directory->son=newNode;
-	}
 	
 	printf("插入成功\n");
 }
 
+
+//先序输出树
+//调用者将参数layer设为0，该参数用于函数递归实现及打印
 void PrintPreOrder(Tree t,int layer)
 {
-
 	if(t==NULL)
 		return;
 
+	//根据当前结点在树中的层决定打印多少个制表符
 	for(int i=0;i<layer;++i)
 		putchar('\t');
 	printf("%s\n",t->name);
@@ -152,12 +176,15 @@ void PrintPreOrder(Tree t,int layer)
 	}
 }
 
+
+
+//后序输出树
+//调用者将参数layer设为0，该参数用于函数递归实现及打印
 void PrintPostOrder(Tree t,int layer)
 {
 	if(t==NULL)
 		return;
-	
-	
+
 	Tree temp=t->son;
 	while(temp!=NULL)
 	{
@@ -165,13 +192,17 @@ void PrintPostOrder(Tree t,int layer)
 		temp=temp->brother;
 	}
 	
-	
+	//根据当前结点在树中的层决定打印多少个制表符
 	for(int i=0;i<layer;++i)
 		putchar('\t');
 	printf("%s\n",t->name);
 
 }
 
+
+
+
+//统计树中有多少个结点
 int Count(Tree t)
 {
 	int total = 0;
@@ -190,6 +221,8 @@ int Count(Tree t)
 }
 
 
+
+//释放树中的每一个结点
 void FreeTree(Tree t)
 {
 	if(t==NULL)
@@ -203,97 +236,164 @@ void FreeTree(Tree t)
 		FreeTree(t_son);
 		t_son=temp;
 	}
-	
 	free(t);
 }
 
+
+
+
+//退出程序时将树存入同级目录下的文件FileSystem.xw中
 void Store(Tree t)
 {
 	FILE *fp;
 	fopen_s(&fp, "FileSystem.xw", "wb+");
+
+	//统计树中有多少结点并将该信息写入文件中，用于加载文件时快速确定重建的树需要多少结点
 	int size = Count(t);
 	fwrite(&size, sizeof(int), 1, fp);
+
+	//根据结点的数量开辟一个等大小的fileNode型数组，将树中所有结点通过先序顺序存入数组，然后将该数组写入文件
+	//数组中每个结点均记录了该结点在原树中的father在数组中的下标
 	fileNode *file = (fileNode*)malloc(sizeof(fileNode)*size);
 	StoreToArray(file, t, -1,0);
 
 	fwrite(file, sizeof(fileNode), size, fp);
-
 	fclose(fp);
 	free(file);
-	if (Loaded)
-		free(t);
-	else
-		FreeTree(t);
+
+	
+	FreeTree(t);
 }
 
-int StoreToArray(fileNode *file, Tree t,int father,int ths)
+
+
+//将树通过先序顺序存入数组file中
+//参数father即结点在原树中的father在数组中的下标，调用者设其为-1
+//参数ths即当前结点在数组中的下标
+//参数father和ths都是为了函数的递归实现
+int StoreToArray(fileNode *file, Tree node,int father,int ths)
 {
-	if (t == NULL)
+	if (node == NULL)
 		return ths;
 
 	file[ths].father = father;
-	file[ths].IsFile = t->IsFile;
-	strcpy_s(file[ths].name, NAMESIZE, t->name);
+	file[ths].IsFile = node->IsFile;
+	strcpy_s(file[ths].name, NAMESIZE, node->name);
 
-	Tree temp = t->son;
-	int i = ths+1;
+	Tree temp = node->son;
+	//nextNode即下一个存储到数组的结点的下标，因为函数递归实现所以nextNode必不可少
+	int nextNode = ths+1;
 	while (temp != NULL)
 	{
-		i = StoreToArray(file, temp, ths, i);
+		nextNode = StoreToArray(file, temp, ths, nextNode);
 		temp = temp->brother;
 	}
 
-	return i;
+	return nextNode;
 }
 
 
-
+//将存储在文件中的树加载进内存并重构为树
 bool Load(Tree *t)
 {
 	FILE *fp;
 	if (fopen_s(&fp, "FileSystem.xw", "rb"))
 		return false;
 
+	//获取文件中的size，以确定树有多少结点，并将文件中的树存入file数组中
 	int size = 0;
 	fread(&size, sizeof(int), 1, fp);
 	fileNode *file = (fileNode*)malloc(sizeof(fileNode)*size);
-	treeNode *data = (treeNode *)malloc(sizeof(treeNode)*size);
 	fread(file, sizeof(fileNode), size, fp);
 	fclose(fp);
 
-	for (int i = 0;i < size;++i)
-	{
-		data[i].IsFile = file[i].IsFile;
-		strcpy_s(data[i].name, NAMESIZE, file[i].name);
-		data[i].son = data[i].brother = NULL;
-	}
-
+	//nodeInformation存储各结点存入内存后的位置
+	Tree *nodeInformation = (Tree *)malloc(sizeof(Tree)*size);
 	Tree temp = NULL;
 	for (int i = 0;i < size;++i)
 	{
-		for (int j = i + 1;j < size;++j)
+		temp = (Tree)malloc(sizeof(treeNode));
+		temp->IsFile = file[i].IsFile;
+		strcpy_s(temp->name, NAMESIZE, file[i].name);
+		temp->son = temp->brother = NULL;
+		nodeInformation[i] = temp;
+	}
+
+	//根据nodeInformation存储的各结点位置，以及file中存储的各结点father下标，重构树
+	int index = 0;
+	for (int i = 1;i < size;++i)
+	{
+		index = file[i].father;
+		if (nodeInformation[index]->son == NULL)
+			nodeInformation[index]->son = nodeInformation[i];
+		else
 		{
-			if (file[j].father == i)
-			{
-				if (data[i].son == NULL)
-				{
-					data[i].son = &data[j];
-				}
-				else
-				{
-					temp = data[i].son;
-					while (temp->brother != NULL)
-						temp = temp->brother;
-					temp->brother = &data[j];
-				}
-			}
+			temp = nodeInformation[index]->son;
+			while (temp->brother != NULL)
+				temp = temp->brother;
+			temp->brother = nodeInformation[i];
 		}
 	}
+
+	*t = nodeInformation[0];
 	free(file);
-	*t = data;
-	Loaded = true;
+	free(nodeInformation);
 	return true;
 }
 
 
+
+void Delete(Tree t)
+{
+	char deletePath[PATHSIZE];
+	printf("请输入要删除的文件（夹）的路径，格式如此：root/xxx/xxx（注意，删除文件夹将导致其下所有文件删除）\n");
+	scanf_s("%s", deletePath, PATHSIZE);
+	strcat_s(deletePath, PATHSIZE, "/");
+
+	int n = 0;  //n为inserPath中'/'的个数，即“结点个数”
+	int i = 0;
+	while (deletePath[i] != '\0')
+		if (deletePath[i++] == '/')
+			n++;
+
+
+	Tree directory = FindDirectory(t, deletePath, 0, n - 2);
+	char name[NAMESIZE] = "\0";
+	getNodeName(name, deletePath, n - 1);
+	if (directory == NULL)
+	{
+		printf("路径错误！");
+		return;
+	}
+	Tree deleteNode_leftBrother = NULL;
+	Tree deleteNode = directory->son;
+	while (deleteNode != NULL)
+	{
+		if (!strcmp(deleteNode->name, name))
+			break;
+		else
+		{
+			deleteNode_leftBrother = deleteNode;
+			deleteNode = deleteNode->brother;
+		}
+	}
+
+	if (deleteNode == NULL)
+	{
+		printf("不存在该目标！\n");
+		return;
+	}
+	if (deleteNode_leftBrother != NULL)
+	{
+		if (deleteNode->brother != NULL)
+			deleteNode_leftBrother->brother = deleteNode->brother;
+		else
+			deleteNode_leftBrother->brother = NULL;
+	}
+	else
+		directory->son = NULL;
+
+	FreeTree(deleteNode);
+
+}
 
