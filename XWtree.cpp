@@ -27,7 +27,6 @@ void getNodeName(char *des, const char *path, int layer)
 			i++;
 	}
 
-
 	int srcEnd = srcStart;
 
 	while (path[srcEnd] != '/')
@@ -35,20 +34,20 @@ void getNodeName(char *des, const char *path, int layer)
 
 	strncpy_s(des, 50, &path[srcStart], srcEnd - srcStart);
 	des[srcEnd - srcStart] = '\0';
-
 }
 
 
 
 
-//寻找参数Path中某文件夹结点的地址，参数total用于指明寻找路径中的哪一层文件夹，层数从0开始
-//如Path为root/xxx/yyy/时，如果total为2则返回yyy的地址，total为0则返回root的地址
+//寻找参数Path中某文件夹结点的地址，参数target用于指明寻找路径中的哪一层文件夹，层数从0开始
+//如Path为root/xxx/yyy/时，如果target为2则返回yyy的地址，target为0则返回root的地址
 //参数layer调用者一般设为0，用于函数递归实现
-//若不存在目标文件夹（目标结点为文件或total大于path中的层数），则返回NULL
+//若不存在目标文件夹（目标结点为文件或target大于path中的层数），则返回NULL
 Tree FindDirectory(Tree t,const char *path,int layer,int target)
 {
 	char name[NAMESIZE];
 	getNodeName(name,path,layer);
+	//若当前层次的结点名字与path中对应层次的名字相同，且当前层次结点是文件夹，则继续向下寻找，否则返回NULL
 	if(!strcmp(name,t->name)&&!t->IsFile)
 	{
 		if(layer==target)
@@ -89,14 +88,15 @@ Choice GetChoice()
 {
 	int choice;
 	printf("\n请选择你要的操作：\n");
-	printf("0.新增文件（夹）   1.先序遍历系统   2.后序遍历系统    3.退出程序\n");
+	printf("0.新增文件（夹）   1.删除文件（夹）    2.先序遍历系统   3.后序遍历系统    4.退出程序\n");
 	scanf_s("%d",&choice);
 	
 	switch(choice)
 	{
 		case 0:return INSERT;
-		case 1:return PREORDER;
-		case 2:return POSTORDER;
+		case 1:return DELETE;
+		case 2:return PREORDER;
+		case 3:return POSTORDER;
 		default:return QUIT;
 	}
 }
@@ -116,7 +116,6 @@ void Insert(Tree t)
 		if(insertPath[i++]=='/')
 			n++;
 	
-	
 	Tree directory=FindDirectory(t,insertPath,0,n-1);
 	
 	if(directory==NULL)
@@ -129,7 +128,6 @@ void Insert(Tree t)
 	int nodeType;
 	scanf_s("%d",&nodeType);
 
-	
 	Tree newNode=(Tree)malloc(sizeof(treeNode));
 	switch(nodeType)
 	{
@@ -152,7 +150,7 @@ void Insert(Tree t)
 	else
 		directory->son=newNode;
 	
-	printf("插入成功\n");
+	printf("插入成功\n\n");
 }
 
 
@@ -259,9 +257,8 @@ void Store(Tree t)
 
 	fwrite(file, sizeof(fileNode), size, fp);
 	fclose(fp);
-	free(file);
 
-	
+	free(file);
 	FreeTree(t);
 }
 
@@ -336,14 +333,15 @@ bool Load(Tree *t)
 	}
 
 	*t = nodeInformation[0];
+	
 	free(file);
 	free(nodeInformation);
 	return true;
 }
 
 
-
-void Delete(Tree t)
+//删除树中的某结点，若该结点为文件夹类型，则其下所有文件都会被删除
+void DeleteNode(Tree t)
 {
 	char deletePath[PATHSIZE];
 	printf("请输入要删除的文件（夹）的路径，格式如此：root/xxx/xxx（注意，删除文件夹将导致其下所有文件删除）\n");
@@ -365,6 +363,8 @@ void Delete(Tree t)
 		printf("路径错误！");
 		return;
 	}
+
+	
 	Tree deleteNode_leftBrother = NULL;
 	Tree deleteNode = directory->son;
 	while (deleteNode != NULL)
@@ -384,16 +384,13 @@ void Delete(Tree t)
 		return;
 	}
 	if (deleteNode_leftBrother != NULL)
-	{
-		if (deleteNode->brother != NULL)
 			deleteNode_leftBrother->brother = deleteNode->brother;
-		else
-			deleteNode_leftBrother->brother = NULL;
-	}
+	else if (deleteNode->brother != NULL)
+		directory->son = deleteNode->brother;
 	else
 		directory->son = NULL;
 
 	FreeTree(deleteNode);
-
+	printf("删除成功\n\n");
 }
 
